@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>Foro de Desarrolladores</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' type='text/css' media='screen' href='main.css'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="columns is-centered">
+            <div class="column is-half">
+                <div class="box mt-5" id="userInfoBox">
+                    <h2 class="title is-2 has-text-centered">Bienvenido al Foro de Desarrolladores</h2>
+                    <form>
+                        <div class="field">
+                            <label class="label">Nombre</label>
+                            <div class="control">
+                                <input class="input" type="text" id="name" placeholder="Tu nombre">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="control">
+                                <button type="button" class="button is-primary is-fullwidth" onclick="submitUserInfo()">Unirse al Foro</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="box mt-5" id="chatBox" style="display: none;">
+                    <h2 class="title is-2 has-text-centered" id="welcomeMessage"></h2>
+                    <button class="button is-small" id="backButton" style="display: none;" onclick="showGroupChat()">← Volver al Chat Grupal</button>
+                    <div id="chatMessages" style="height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;"></div>
+                    <div class="field">
+                        <label class="label">Tu Mensaje</label>
+                        <div class="control">
+                            <textarea class="textarea" id="chatInput" placeholder=""></textarea>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <div class="control">
+                            <button type="button" class="button is-primary is-fullwidth" onclick="submitMessage()">Enviar Mensaje</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+    <script>
+        const socket = io.connect();
+        let userName = '';
+        let currentChat = 'group'; // 'group' for group chat, username for private chat
+        const privateMessages = {}; // Store private messages
+
+        function submitUserInfo() {
+            const name = document.getElementById('name').value;
+            userName = name;
+
+            document.getElementById('userInfoBox').style.display = 'none';
+            document.getElementById('chatBox').style.display = 'block';
+
+            document.getElementById('welcomeMessage').innerText = 'Hola, ' + name + '. Bienvenido al foro de desarrolladores.';
+
+            socket.emit('username', { name });
+        }
+
+        function submitMessage() {
+            const message = document.getElementById('chatInput').value;
+            document.getElementById('chatInput').value = '';
+
+            if (currentChat === 'group') {
+                socket.emit('chatMessage', { sender: userName, message });
+            } else {
+                const recipient = currentChat;
+                socket.emit('privateMessage', { sender: userName, recipient, message });
+                addPrivateMessage(userName, recipient, message);
+                if (currentChat === recipient) {
+                    const chatMessages = document.getElementById('chatMessages');
+                    chatMessages.innerHTML += `<p><strong>${userName}:</strong> ${message}</p>`;
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            }
+        }
+
+        function showPrivateChat(user) {
+            currentChat = user;
+            document.getElementById('backButton').style.display = 'block';
+            document.getElementById('chatMessages').innerHTML = `<h2 class="title is-4">Chat con ${user}</h2>`;
+
+            if (privateMessages[user]) {
+                privateMessages[user].forEach(msg => {
+                    document.getElementById('chatMessages').innerHTML += `<p><strong>${msg.sender}:</strong> ${msg.message}</p>`;
+                });
+            }
+        }
+
+        function showGroupChat() {
+            currentChat = 'group';
+            document.getElementById('backButton').style.display = 'none';
+            document.getElementById('chatMessages').innerHTML = '';
+            socket.emit('requestGroupChatMessages');
+        }
+
+        function addPrivateMessage(sender, recipient, message) {
+            if (!privateMessages[recipient]) {
+                privateMessages[recipient] = [];
+            }
+            privateMessages[recipient].push({ sender, message });
+
+            if (!privateMessages[sender]) {
+                privateMessages[sender] = [];
+            }
+            privateMessages[sender].push({ sender, message });
+        }
+
+        socket.on('chatMessage', function(data) {
+            if (currentChat === 'group') {
+                const chatMessages = document.getElementById('chatMessages');
+                const senderName = data.sender || userName;
+                chatMessages.innerHTML += `<p><strong class="is-clickable" onclick="showPrivateChat('${senderName}')">${senderName}</strong>: ${data.message}</p>`;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        });
+
+        socket.on('privateMessage', function(data) {
+            addPrivateMessage(data.sender, data.recipient, data.message);
+
+            if (data.recipient === userName) {
+                if (currentChat === data.sender) {
+                    const chatMessages = document.getElementById('chatMessages');
+                    chatMessages.innerHTML += `<p><strong>${data.sender}:</strong> ${data.message}</p>`;
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                } else {
+                    alert(`Nuevo mensaje privado de ${data.sender}: ${data.message}`);
+                }
+            }
+        });
+
+        socket.on('groupChatMessages', function(messages) {
+            if (currentChat === 'group') {
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = '';
+                messages.forEach(msg => {
+                    const senderName = msg.sender || userName;
+                    chatMessages.innerHTML += `<p><strong class="is-clickable" onclick="showPrivateChat('${senderName}')">${senderName}</strong>: ${msg.message}</p>`;
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        });
+    </script>
+</body>
+</html>
