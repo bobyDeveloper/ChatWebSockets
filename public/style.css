@@ -1,0 +1,40 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: #363636;
+    color: #f5f5f5;
+}
+
+.box {
+    background-color: #4a4a4a;
+    color: #f5f5f5;
+}
+
+.input, .textarea {
+    background-color: #222;
+    border-color: #555;
+    color: #f5f5f5;
+}
+
+.button.is-primary {
+    background-color: #3273dc;
+    border-color: transparent;
+    color: #f5f5f5;
+}
+
+.button.is-primary:hover {
+    background-color: #2366d1;
+}
+
+a {
+    color: #48c78e;
+}
+
+#chatMessages {
+    background-color: hwb(0 100% 0%);
+    color: hsl(0, 0%, 0%);
+}
